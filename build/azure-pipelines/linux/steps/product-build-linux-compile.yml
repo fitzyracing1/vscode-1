@@ -31,8 +31,7 @@ parameters:
     type: string
     default: none
   # What the job builds. The product and flaky-smoke builds build everything; a CI test job builds
-  # only what its tests use (see product-build-linux-ci.yml): without the client, the server and the
-  # web server, it compiles only out-build, without the minified bundles.
+  # only what its tests use (see product-build-linux-ci.yml). Every job compiles with core-ci.
   - name: VSCODE_BUILD_CLIENT
     type: boolean
     default: true
@@ -82,27 +81,16 @@ steps:
         vscodePlatform: linux
         VSCODE_PRIVILEGED_CONNECTIONS: ${{ parameters.VSCODE_PRIVILEGED_CONNECTIONS }}
 
-  # The client and the servers package the built-in Copilot, which the vscode-capi mixin is for
+  - template: ../../common/mixin-vscode-capi.yml@self
+
+  - script: pnpm run gulp core-ci
+    env:
+      GITHUB_TOKEN: "$(github-token-code-oss)"
+    displayName: Compile
+
+  # The client and the servers package the built-in Copilot
   - ${{ if or(eq(parameters.VSCODE_BUILD_CLIENT, true), eq(parameters.VSCODE_BUILD_SERVER, true), eq(parameters.VSCODE_BUILD_SERVER_WEB, true)) }}:
-    - template: ../../common/mixin-vscode-capi.yml@self
-
-    - script: pnpm run gulp core-ci
-      env:
-        GITHUB_TOKEN: "$(github-token-code-oss)"
-      displayName: Compile
-
     - template: ../../copilot/builtin-steps.yml@self
-
-  # The test runners load out-build/nls.messages.json with --build, which only the minified bundles of
-  # core-ci write. The transpiled out-build keeps its messages, so the tests don't use the file.
-  - ${{ else }}:
-    - script: |
-        set -e
-        pnpm run gulp core-ci-pr
-        [ -f out-build/nls.messages.json ] || echo '[]' > out-build/nls.messages.json
-      env:
-        GITHUB_TOKEN: "$(github-token-code-oss)"
-      displayName: Compile
 
   # One Compile job uploads the Copilot source maps, in publishing builds only: CI builds never publish, and the
   # SDK validation build has no CDN connection.
