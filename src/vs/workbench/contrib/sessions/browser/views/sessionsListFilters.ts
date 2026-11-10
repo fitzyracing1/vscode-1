@@ -98,6 +98,7 @@ export function getSessionFilterOptions(sessions: readonly ISession[], environme
 
 export class SessionsListFilters extends Disposable implements ISessionsListResettableState {
 	private static readonly STORAGE_KEY = 'sessionsListControl.filters';
+	private static readonly SHOW_AUTOMATION_RUNS_KEY = 'showAutomationRuns';
 	private readonly excluded: Map<string, boolean>;
 	private readonly _onDidChange = this._register(new Emitter<void>());
 	readonly onDidChange = this._onDidChange.event;
@@ -133,6 +134,15 @@ export class SessionsListFilters extends Disposable implements ISessionsListRese
 
 	setExcluded(filter: SessionFilter, excluded: boolean): void {
 		this.excluded.set(sessionFilterKey(filter), excluded);
+		this.save();
+	}
+
+	isShowAutomationRuns(): boolean {
+		return this.excluded.get(SessionsListFilters.SHOW_AUTOMATION_RUNS_KEY) ?? false;
+	}
+
+	setShowAutomationRuns(show: boolean): void {
+		this.excluded.set(SessionsListFilters.SHOW_AUTOMATION_RUNS_KEY, show);
 		this.save();
 	}
 
