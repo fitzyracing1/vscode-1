@@ -314,12 +314,10 @@ stages:
                 parameters:
                   NPM_ARCH: x64
                   VSCODE_ARCH: x64
-                  VSCODE_JOB_NAME: BrowserRemote
-                  VSCODE_JOB_DISPLAY_NAME: Browser & Remote Tests
+                  VSCODE_JOB_NAME: Remote
+                  VSCODE_JOB_DISPLAY_NAME: Remote Tests
                   VSCODE_TEST_IDS:
-                    - integration-browser-chromium
                     - integration-remote
-                    - smoke-browser-chromium
                     - smoke-remote
               - template: linux/product-build-linux-test.yml@self
                 parameters:
@@ -334,15 +332,27 @@ stages:
                   NPM_ARCH: x64
                   VSCODE_ARCH: x64
                   VSCODE_JOB_NAME: AgentHostE2E
-                  VSCODE_JOB_DISPLAY_NAME: Agent Host E2E Tests (Electron)
+                  VSCODE_JOB_DISPLAY_NAME: Agent Host E2E & Browser Tests
                   VSCODE_TEST_IDS:
                     - integration-agent-host-e2e
+                    - integration-browser-chromium
+                    - smoke-browser-chromium
               - template: linux/product-build-linux-test.yml@self
                 parameters:
                   NPM_ARCH: x64
                   VSCODE_ARCH: x64
-                  VSCODE_JOB_NAME: Smoke
-                  VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron)
+                  VSCODE_JOB_NAME: Smoke1
+                  VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron, 1/2)
+                  VSCODE_SMOKE_SHARD: 1/2
+                  VSCODE_TEST_IDS:
+                    - smoke-electron
+              - template: linux/product-build-linux-test.yml@self
+                parameters:
+                  NPM_ARCH: x64
+                  VSCODE_ARCH: x64
+                  VSCODE_JOB_NAME: Smoke2
+                  VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron, 2/2)
+                  VSCODE_SMOKE_SHARD: 2/2
                   VSCODE_TEST_IDS:
                     - smoke-electron
               - template: linux/product-build-linux-test.yml@self
@@ -429,12 +439,10 @@ stages:
                 parameters:
                   VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
                   VSCODE_QUALITY: ${{ variables.VSCODE_QUALITY }}
-                  VSCODE_JOB_NAME: BrowserRemote
-                  VSCODE_JOB_DISPLAY_NAME: Browser & Remote Tests
+                  VSCODE_JOB_NAME: Remote
+                  VSCODE_JOB_DISPLAY_NAME: Remote Tests
                   VSCODE_TEST_IDS:
-                    - integration-browser-chromium
                     - integration-remote
-                    - smoke-browser-chromium
                     - smoke-remote
               - template: linux/product-build-linux-ci.yml@self
                 parameters:
@@ -449,15 +457,27 @@ stages:
                   VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
                   VSCODE_QUALITY: ${{ variables.VSCODE_QUALITY }}
                   VSCODE_JOB_NAME: AgentHostE2E
-                  VSCODE_JOB_DISPLAY_NAME: Agent Host E2E Tests (Electron)
+                  VSCODE_JOB_DISPLAY_NAME: Agent Host E2E & Browser Tests
                   VSCODE_TEST_IDS:
                     - integration-agent-host-e2e
+                    - integration-browser-chromium
+                    - smoke-browser-chromium
               - template: linux/product-build-linux-ci.yml@self
                 parameters:
                   VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
                   VSCODE_QUALITY: ${{ variables.VSCODE_QUALITY }}
-                  VSCODE_JOB_NAME: Smoke
-                  VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron)
+                  VSCODE_JOB_NAME: Smoke1
+                  VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron, 1/2)
+                  VSCODE_SMOKE_SHARD: 1/2
+                  VSCODE_TEST_IDS:
+                    - smoke-electron
+              - template: linux/product-build-linux-ci.yml@self
+                parameters:
+                  VSCODE_CIBUILD: ${{ variables.VSCODE_CIBUILD }}
+                  VSCODE_QUALITY: ${{ variables.VSCODE_QUALITY }}
+                  VSCODE_JOB_NAME: Smoke2
+                  VSCODE_JOB_DISPLAY_NAME: Smoke Tests (Electron, 2/2)
+                  VSCODE_SMOKE_SHARD: 2/2
                   VSCODE_TEST_IDS:
                     - smoke-electron
               - template: linux/product-build-linux-ci.yml@self

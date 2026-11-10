@@ -79,13 +79,24 @@ function selectedTestIds(testFile: string): { selectedId: string; testId: string
 	);
 }
 
-function ciJobs(file: string, platform: 'darwin' | 'linux' | 'win32'): { name: string; displayName: string; ids: string[] }[] {
+function ciJobs(file: string, platform: 'darwin' | 'linux' | 'win32'): { name: string; displayName: string; ids: string[]; shard?: string }[] {
 	return records(readTemplate(file))
 		.filter(record => typeof record.template === 'string' && record.template.endsWith(`${platform}/product-build-${platform}-ci.yml@self`))
-		.map(record => {
-			const parameters = record.parameters as { VSCODE_JOB_NAME: string; VSCODE_JOB_DISPLAY_NAME: string; VSCODE_TEST_IDS: string[] };
-			return { name: parameters.VSCODE_JOB_NAME, displayName: parameters.VSCODE_JOB_DISPLAY_NAME, ids: parameters.VSCODE_TEST_IDS };
-		});
+		.map(record => testJob(record.parameters));
+}
+
+/**
+ * The test job of a CI or product test job template call; `shard` only for the
+ * jobs that run an Electron smoke test shard.
+ */
+function testJob(value: unknown): { name: string; displayName: string; ids: string[]; shard?: string } {
+	const parameters = value as { VSCODE_JOB_NAME: string; VSCODE_JOB_DISPLAY_NAME: string; VSCODE_TEST_IDS: string[]; VSCODE_SMOKE_SHARD?: string };
+	return {
+		name: parameters.VSCODE_JOB_NAME,
+		displayName: parameters.VSCODE_JOB_DISPLAY_NAME,
+		ids: parameters.VSCODE_TEST_IDS,
+		...(parameters.VSCODE_SMOKE_SHARD === undefined ? {} : { shard: parameters.VSCODE_SMOKE_SHARD }),
+	};
 }
 
 const wrapper = readTemplate('common/run-test-with-checkpoint.yml');
@@ -425,10 +436,7 @@ suite('Product test checkpoint templates', () => {
 					runTests: records(pipeline).filter(record => typeof record.template === 'string' && record.template.endsWith(`${platform}/product-build-${platform}.yml@self`))
 						.map(record => (record.parameters as Record<string, unknown>).VSCODE_RUN_TESTS),
 					jobs: records(pipeline).filter(record => typeof record.template === 'string' && record.template.endsWith(`${platform}/product-build-${platform}-test.yml@self`))
-						.map(record => {
-							const parameters = record.parameters as { VSCODE_ARCH: string; VSCODE_JOB_NAME: string; VSCODE_JOB_DISPLAY_NAME: string; VSCODE_TEST_IDS: string[] };
-							return { arch: parameters.VSCODE_ARCH, name: parameters.VSCODE_JOB_NAME, displayName: parameters.VSCODE_JOB_DISPLAY_NAME, ids: parameters.VSCODE_TEST_IDS };
-						}),
+						.map(record => ({ arch: (record.parameters as { VSCODE_ARCH: string }).VSCODE_ARCH, ...testJob(record.parameters) })),
 				};
 			});
 			const selectedIds = selectedTestIds(testFile);
@@ -453,12 +461,20 @@ suite('Product test checkpoint templates', () => {
 				sameJobsInEachPipeline: jobsByPipeline.every(pipelineJobs => JSON.stringify(pipelineJobs) === JSON.stringify(jobs)),
 				validJobNames: jobs.every(job => /^[A-Za-z_][A-Za-z0-9_]*$/.test(`${jobPrefix}${job.name}`) && job.ids.length > 0)
 					&& new Set(jobs.map(job => job.name)).size === jobs.length,
-				assignedIds: jobs.flatMap(job => job.ids).sort(),
+				assignedIds: [
+					...jobs.filter(job => job.shard === undefined).flatMap(job => job.ids),
+					...new Set(jobs.filter(job => job.shard !== undefined).flatMap(job => job.ids)),
+				].sort(),
+				// A sharded test ID runs in one job per shard, which only runs that shard
+				shards: jobs.filter(job => job.shard !== undefined).map(job => ({ ids: job.ids, shard: job.shard })),
 				availableIds,
 				testIdsType: ci.parameters?.find(parameter => parameter.name === 'VSCODE_TEST_IDS')?.type,
 				ciTestIds: (compile?.parameters as Record<string, string> | undefined)?.VSCODE_TEST_IDS,
 				defaultTestIds: [compileTemplate, setup, readTemplate(testFile)].map(template => template.parameters?.find(parameter => parameter.name === 'VSCODE_TEST_IDS')?.default),
 				forwardedTestIds: compileSteps.map(step => (step.parameters as Record<string, string>).VSCODE_TEST_IDS),
+				// From the CI job and the product test job to the test steps, through the compile steps
+				forwardedSmokeShards: [compile, ...compileSteps, records(productTestTemplate).find(record => record.template === `./steps/product-build-${platform}-test.yml@self`)]
+					.map(record => (record?.parameters as Record<string, string> | undefined)?.VSCODE_SMOKE_SHARD),
 				selectedIds: selectedIds.map(({ selectedId }) => selectedId).sort(),
 				selectionsMatchTests: selectedIds.every(({ selectedId, testId }) => selectedId === testId),
 				// On Linux, the CI test job that builds the server for the remote smoke tests checks the packaged Agent Host
@@ -478,9 +494,9 @@ suite('Product test checkpoint templates', () => {
 					.map(parameter => parameter.name).filter(name => /^VSCODE_RUN_\w+_TESTS$/.test(name)),
 			};
 		});
-		const jobDisplayNames = ['Unit Tests (Electron)', 'Unit Tests (Node.js & Browser)', 'Browser & Remote Tests', 'Integration Tests (Electron)', 'Agent Host E2E Tests (Electron)', 'Smoke Tests (Electron)', 'Copilot Tests'];
+		const linuxJobDisplayNames = ['Unit Tests (Electron)', 'Unit Tests (Node.js & Browser)', 'Remote Tests', 'Integration Tests (Electron)', 'Agent Host E2E & Browser Tests', 'Smoke Tests (Electron, 1/2)', 'Smoke Tests (Electron, 2/2)', 'Copilot Tests'];
 		// The Copilot tests run on Windows and Linux only
-		const darwinJobDisplayNames = jobDisplayNames.filter(displayName => displayName !== 'Copilot Tests');
+		const darwinJobDisplayNames = ['Unit Tests (Electron)', 'Unit Tests (Node.js & Browser)', 'Browser & Remote Tests', 'Integration Tests (Electron)', 'Agent Host E2E Tests (Electron)', 'Smoke Tests (Electron)'];
 		const copilotCondition = '${{ if containsValue(parameters.VSCODE_TEST_IDS, \'copilot\') }}';
 		const remoteNodeCondition = '${{ if or(containsValue(parameters.VSCODE_TEST_IDS, \'integration-remote\'), containsValue(parameters.VSCODE_TEST_IDS, \'smoke-remote\')) }}';
 		const runTests = '${{ eq(parameters.VSCODE_STEP_ON_IT, false) }}';
@@ -489,15 +505,17 @@ suite('Product test checkpoint templates', () => {
 				platform: 'linux',
 				jobName: 'Linux${{ parameters.VSCODE_JOB_NAME }}',
 				jobDisplayName: '${{ parameters.VSCODE_JOB_DISPLAY_NAME }}',
-				jobDisplayNames,
+				jobDisplayNames: linuxJobDisplayNames,
 				sameJobsInEachPipeline: true,
 				validJobNames: true,
 				assignedIds: observed[0].availableIds,
+				shards: [{ ids: ['smoke-electron'], shard: '1/2' }, { ids: ['smoke-electron'], shard: '2/2' }],
 				availableIds: observed[0].availableIds,
 				testIdsType: 'object',
 				ciTestIds: '${{ parameters.VSCODE_TEST_IDS }}',
 				defaultTestIds: [[], [], []],
 				forwardedTestIds: ['${{ parameters.VSCODE_TEST_IDS }}', '${{ parameters.VSCODE_TEST_IDS }}'],
+				forwardedSmokeShards: ['${{ parameters.VSCODE_SMOKE_SHARD }}', undefined, '${{ parameters.VSCODE_SMOKE_SHARD }}', '${{ parameters.VSCODE_SMOKE_SHARD }}'],
 				selectedIds: observed[0].availableIds,
 				selectionsMatchTests: true,
 				agentHostSmokeFollowsTest: true,
@@ -522,11 +540,13 @@ suite('Product test checkpoint templates', () => {
 				sameJobsInEachPipeline: true,
 				validJobNames: true,
 				assignedIds: observed[1].availableIds,
+				shards: [],
 				availableIds: observed[1].availableIds,
 				testIdsType: 'object',
 				ciTestIds: '${{ parameters.VSCODE_TEST_IDS }}',
 				defaultTestIds: [[], [], []],
 				forwardedTestIds: ['${{ parameters.VSCODE_TEST_IDS }}', '${{ parameters.VSCODE_TEST_IDS }}'],
+				forwardedSmokeShards: [undefined, undefined, undefined, undefined],
 				selectedIds: observed[1].availableIds,
 				selectionsMatchTests: true,
 				agentHostSmokeFollowsTest: true,

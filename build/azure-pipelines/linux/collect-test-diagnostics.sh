@@ -98,9 +98,4 @@ else
   fi
 fi
 
-# Keep du on the small OS root disk, excluding the large /mnt work volume.
-# Scan it last so a slow root scan does not prevent the other diagnostics.
-echo "--- top consumers on / ---"
-run_diagnostic du -xhd1 / | run_diagnostic sort -rh | run_diagnostic sed -n '1,30p'
-
 exit "$diagnostic_status"

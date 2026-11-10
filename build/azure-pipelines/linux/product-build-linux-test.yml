@@ -9,6 +9,10 @@ parameters:
     type: string
   - name: VSCODE_TEST_IDS
     type: object
+  # See steps/product-build-linux-test.yml
+  - name: VSCODE_SMOKE_SHARD
+    type: string
+    default: ''
 
 # Each product test job tests the builds of the compilation artifact published
 # by the compile job (see product-build-linux.yml, which must set
@@ -68,3 +72,4 @@ jobs:
           VSCODE_TEST_IDS: ${{ parameters.VSCODE_TEST_IDS }}
           VSCODE_COMPILE_TEST_SUITES: true
           VSCODE_RERUN_FAILED_TESTS: true
+          VSCODE_SMOKE_SHARD: ${{ parameters.VSCODE_SMOKE_SHARD }}

@@ -46,6 +46,10 @@ parameters:
   - name: VSCODE_BUILD_PRODUCT_ASSETS
     type: boolean
     default: true
+  # See product-build-linux-test.yml
+  - name: VSCODE_SMOKE_SHARD
+    type: string
+    default: ''
 
 steps:
   - template: product-build-linux-setup.yml@self
@@ -192,6 +196,7 @@ steps:
     - template: product-build-linux-test.yml@self
       parameters:
         VSCODE_TEST_IDS: ${{ parameters.VSCODE_TEST_IDS }}
+        VSCODE_SMOKE_SHARD: ${{ parameters.VSCODE_SMOKE_SHARD }}
 
   - ${{ if and(ne(parameters.VSCODE_CIBUILD, true), ne(parameters.VSCODE_BUILD_ONLY, true)) }}:
     - template: product-build-linux-package-finalize.yml@self
