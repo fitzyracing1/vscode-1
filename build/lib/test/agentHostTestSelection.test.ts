@@ -400,10 +400,12 @@ suite('Agent Host PR test selection', () => {
 			}
 			// The change-detection skip only applies to the Agent Host E2E step, and only Agent Host E2E runs in
 			// shards. Where the integration tests run in parts, the node.js part is the one that excludes the
-			// Agent Host E2E entrypoints.
+			// Agent Host E2E entrypoints. Only the test runs are compared, not the lookup of the packaged client
+			// before them, nor the server that only the remote tests use: the Agent Host E2E runner runs
+			// out-build with .build/electron.
 			const signature = (step: ICommandStep) => JSON.stringify({
-				command: step.command.replace('test-agent-host-e2e.', 'test-integration.').replace(' --only-node-tests', '').replace(/\$\{\{ env\.AGENT_HOST_E2E_SHARD_.*? \}\}/g, ''),
-				environment: Object.fromEntries(Object.entries(step.environment).filter(([name]) => name !== 'VSCODE_SKIP_AGENT_HOST_E2E').sort()),
+				command: /[.][\\/]scripts[\\/]test-integration\.[^\n]*/.exec(step.command.replace('test-agent-host-e2e.', 'test-integration.').replace(' --only-node-tests', '').replace(/\$\{\{ env\.AGENT_HOST_E2E_SHARD_.*? \}\}/g, ''))?.[0],
+				environment: Object.fromEntries(Object.entries(step.environment).filter(([name]) => name !== 'VSCODE_SKIP_AGENT_HOST_E2E' && name !== 'VSCODE_REMOTE_SERVER_PATH').sort()),
 			});
 			const agentHostSignatures = agentHost.map(signature).sort();
 			return [{
