@@ -691,7 +691,7 @@ export class SessionsView extends ViewPane {
 					menu: [{
 						id: Menus.SessionsViewFilter,
 						group: '3_visibility',
-						order: 0,
+						order: 0.5,
 					}],
 				});
 			}
